@@ -47,6 +47,25 @@ export const createItemSchema = Joi.object({
       'any.required': 'Condition is required'
     }),
 
+  phone_number: Joi.string()
+    .trim()
+    .pattern(/^[\+]?[0-9\s\-\(\)]{10,15}$/)
+    .required()
+    .messages({
+      'string.empty': 'Phone number is required',
+      'string.pattern.base': 'Please enter a valid phone number (10-15 digits)',
+      'any.required': 'Phone number is required'
+    }),
+
+  whatsapp_number: Joi.string()
+    .trim()
+    .pattern(/^[\+]?[0-9\s\-\(\)]{10,15}$/)
+    .optional()
+    .allow('')
+    .messages({
+      'string.pattern.base': 'Please enter a valid WhatsApp number (10-15 digits)'
+    }),
+
   latitude: Joi.number()
     .min(-90)
     .max(90)
@@ -103,6 +122,23 @@ export const updateItemSchema = Joi.object({
     .optional()
     .messages({
       'any.only': 'Condition must be one of: NEW, GOOD, FAIR, POOR'
+    }),
+
+  phone_number: Joi.string()
+    .trim()
+    .pattern(/^[\+]?[0-9\s\-\(\)]{10,15}$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Please enter a valid phone number (10-15 digits)'
+    }),
+
+  whatsapp_number: Joi.string()
+    .trim()
+    .pattern(/^[\+]?[0-9\s\-\(\)]{10,15}$/)
+    .optional()
+    .allow('')
+    .messages({
+      'string.pattern.base': 'Please enter a valid WhatsApp number (10-15 digits)'
     }),
 
   latitude: Joi.number()
@@ -170,7 +206,6 @@ export const itemQuerySchema = Joi.object({
 // Validation schema for item ID parameter
 export const itemParamsSchema = Joi.object({
   itemId: Joi.string()
-    .uuid()
     .required()
     .messages({
       'string.empty': 'Item ID is required',

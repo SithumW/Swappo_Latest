@@ -146,6 +146,33 @@ router.get('/requests/sent',
   }
 );
 
+// Get completed trades for current user
+router.get('/completed', 
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const completedTrades = await TradeService.getCompletedTrades(req.user.id);
+      res.json(createSuccessResponse(completedTrades));
+    } catch (error) {
+      console.error('Fetch completed trades error:', error);
+      res.status(500).json(createErrorResponse('Failed to fetch completed trades'));
+    }
+  }
+);
+
+// Get completed trades for a specific user (public)
+router.get('/completed/:userId', 
+  async (req, res) => {
+    try {
+      const completedTrades = await TradeService.getCompletedTrades(req.params.userId);
+      res.json(createSuccessResponse(completedTrades));
+    } catch (error) {
+      console.error('Fetch user completed trades error:', error);
+      res.status(500).json(createErrorResponse('Failed to fetch completed trades'));
+    }
+  }
+);
+
 // Helper function to determine status code from error message
 function getErrorStatusCode(errorMessage) {
   if (errorMessage.includes('not found')) return 404;

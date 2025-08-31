@@ -77,13 +77,9 @@ router.delete('/:ratingId',
 // Get ratings for a user (received by default)
 router.get('/user/:userId', 
   validateParams(userIdParamSchema),
-  validateQuery({
-    ...paginationSchema.describe(),
-    type: ratingStatsQuerySchema.extract('type')
-  }),
   async (req, res) => {
     try {
-      const result = await RatingService.getUserRatings(req.params.userId, req.query.type, req.query);
+      const result = await RatingService.getUserRatings(req.params.userId, 'received');
       res.json(createSuccessResponse(result));
     } catch (error) {
       console.error('User ratings fetch error:', error);

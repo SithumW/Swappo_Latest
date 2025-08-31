@@ -3,7 +3,7 @@ import Joi from 'joi';
 
 // Validation schema for creating a rating
 export const createRatingSchema = Joi.object({
-  rated_id: Joi.string()
+  reviewee_id: Joi.string()
     .required()
     .messages({
       'string.empty': 'Rated user ID is required',

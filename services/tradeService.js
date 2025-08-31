@@ -246,12 +246,13 @@ export class TradeService {
    */
   static async completeTrade(tradeId, userId) {
     const trade = await prisma.trade.findUnique({
-      where: { id: tradeId },
+      where: { trade_request_id: tradeId },
       include: {
         requested_item: { select: { id: true, user_id: true, title: true } },
         offered_item: { select: { id: true, user_id: true, title: true } }
       }
     });
+
 
     if (!trade) {
       throw new Error('Trade not found');
@@ -270,7 +271,7 @@ export class TradeService {
     const result = await prisma.$transaction(async (tx) => {
       // Update trade status
       const completedTrade = await tx.trade.update({
-        where: { id: tradeId },
+        where: { trade_request_id: tradeId },
         data: { 
           status: 'COMPLETED',
           completed_at: new Date()
@@ -293,14 +294,14 @@ export class TradeService {
       await Promise.all([
         tx.swappedItem.create({
           data: {
-            trade_id: tradeId,
+            trade_id: trade.id,
             item_id: trade.requested_item_id,
             user_id: trade.requester_id // Requester gets the requested item
           }
         }),
         tx.swappedItem.create({
           data: {
-            trade_id: tradeId,
+            trade_id: trade.id,
             item_id: trade.offered_item_id,
             user_id: trade.owner_id // Owner gets the offered item
           }
@@ -444,8 +445,6 @@ export class TradeService {
    * Get sent trade requests
    */
   static async getSentRequests(userId, pagination = { page: 1, limit: 50 }) {
-    const { page, limit } = pagination;
-    const skip = (page - 1) * limit;
 
     const [requests, total] = await Promise.all([
       prisma.tradeRequest.findMany({
@@ -461,11 +460,11 @@ export class TradeService {
           },
           offered_item: {
             include: { images: true }
+          },
+          trade: { select: { id: true, status: true }
           }
         },
-        orderBy: { requested_at: 'desc' },
-        skip,
-        take: limit
+        orderBy: { requested_at: 'desc' }
       }),
       prisma.tradeRequest.count({
         where: {
@@ -475,13 +474,51 @@ export class TradeService {
     ]);
 
     return {
-      requests,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      requests
     };
+  }
+
+  /**
+   * Get completed trades for a user
+   */
+  static async getCompletedTrades(userId) {
+    const completedTrades = await prisma.trade.findMany({
+      where: {
+        AND: [
+          { status: 'COMPLETED' },
+          {
+            OR: [
+              { owner_id: userId },
+              { requester_id: userId }
+            ]
+          }
+        ]
+      },
+      include: {
+        requested_item: {
+          include: { 
+            images: true,
+            user: { select: { id: true, name: true, image: true } }
+          }
+        },
+        offered_item: {
+          include: { 
+            images: true,
+            user: { select: { id: true, name: true, image: true } }
+          }
+        },
+        owner: { select: { id: true, name: true, image: true } },
+        requester: { select: { id: true, name: true, image: true } },
+        ratings: {
+          include: {
+            reviewer: { select: { id: true, name: true, image: true } },
+            reviewee: { select: { id: true, name: true, image: true } }
+          }
+        }
+      },
+      orderBy: { completed_at: 'desc' }
+    });
+
+    return completedTrades;
   }
 }

@@ -75,7 +75,7 @@ router.get('/',
   optionalAuthMiddleware,
   async (req, res) => {
     try {
-      const result = await ItemService.getAllItems();
+      const result = await ItemService.getAllItems(req.user?.id);
       res.json(createSuccessResponse(result, SUCCESS_MESSAGES.RETRIEVED));
     } catch (error) {
       console.error('Items fetch error:', error);
@@ -200,6 +200,20 @@ router.patch('/:itemId/status',
       if (error.message === 'Item not found or access denied') {
         return res.status(404).json(createNotFoundResponse('Item'));
       }
+      res.status(500).json(createServerErrorResponse(ERROR_MESSAGES.OPERATION_FAILED, error));
+    }
+  }
+);
+
+// Get items by user ID
+router.get('/user/:userId', 
+  optionalAuthMiddleware,
+  async (req, res) => {
+    try {
+      const result = await ItemService.getItemsByUser(req.params.userId);
+      res.json(createSuccessResponse(result, SUCCESS_MESSAGES.RETRIEVED));
+    } catch (error) {
+      console.error('User items fetch error:', error);
       res.status(500).json(createServerErrorResponse(ERROR_MESSAGES.OPERATION_FAILED, error));
     }
   }
