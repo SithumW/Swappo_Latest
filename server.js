@@ -48,7 +48,14 @@ try {
 
 // Middleware
 app.use(cors({
-  origin: "http://localhost:5173", // Replace with your frontend's origin
+  origin: [
+    'http://localhost:8080',  // Add this
+    'http://localhost:8081',  // Add this  
+    'http://localhost:8082',  // Add this
+    'http://localhost:8083',  // Add this
+    'http://localhost:5173',  // Existing
+    // Add your production domain when deploying
+  ],
   methods: ["GET", "POST", "PUT", "DELETE"], // Specify allowed HTTP methods
   credentials: true, // Allow credentials (cookies, authorization headers, etc.)
 }));
@@ -98,14 +105,6 @@ if (swaggerDocument) {
     res.send(swaggerDocument);
   });
 }
-
-app.use(
-  cors({
-    origin: "http://localhost:5173", // Replace with your frontend's origin
-    methods: ["GET", "POST", "PUT", "DELETE"], // Specify allowed HTTP methods
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
-  })
-);
 
 // Routes
 // Custom auth routes (for registration)

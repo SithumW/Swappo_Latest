@@ -107,10 +107,9 @@ router.post('/cancel/:tradeId',
 // Get user's trades
 router.get('/my-trades', 
   authMiddleware,
-  validateQuery(userTradesQuerySchema),
   async (req, res) => {
     try {
-      const trades = await TradeService.getUserTrades(req.user.id, req.query);
+      const trades = await TradeService.getUserTrades(req.user.id);
       res.json(createSuccessResponse(trades));
     } catch (error) {
       console.error('Fetch trades error:', error);
@@ -143,6 +142,33 @@ router.get('/requests/sent',
     } catch (error) {
       console.error('Fetch sent requests error:', error);
       res.status(500).json(createErrorResponse('Failed to fetch sent requests'));
+    }
+  }
+);
+
+// Get completed trades for current user
+router.get('/completed', 
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const completedTrades = await TradeService.getCompletedTrades(req.user.id);
+      res.json(createSuccessResponse(completedTrades));
+    } catch (error) {
+      console.error('Fetch completed trades error:', error);
+      res.status(500).json(createErrorResponse('Failed to fetch completed trades'));
+    }
+  }
+);
+
+// Get completed trades for a specific user (public)
+router.get('/completed/:userId', 
+  async (req, res) => {
+    try {
+      const completedTrades = await TradeService.getCompletedTrades(req.params.userId);
+      res.json(createSuccessResponse(completedTrades));
+    } catch (error) {
+      console.error('Fetch user completed trades error:', error);
+      res.status(500).json(createErrorResponse('Failed to fetch completed trades'));
     }
   }
 );

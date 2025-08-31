@@ -12,10 +12,22 @@ const prisma = new PrismaClient();
 export class ItemService {
   
   /**
-   * Get all items without filtering or pagination
+   * Get all items filtered by availability status and excluding requesting user's items
    */
-  static async getAllItems() {
+  static async getAllItems(userId = null) {
+    const whereCondition = {
+      status: 'AVAILABLE'
+    };
+
+    // Exclude the requesting user's own items if userId is provided
+    if (userId) {
+      whereCondition.user_id = {
+        not: userId
+      };
+    }
+
     const items = await prisma.item.findMany({
+      where: whereCondition,
       include: {
         user: {
           select: { 
@@ -85,7 +97,7 @@ export class ItemService {
    * Create a new item
    */
   static async createItem(itemData, userId, files) {
-    const { title, description, category, condition, latitude, longitude } = itemData;
+    const { title, description, category, condition, phone_number, whatsapp_number, latitude, longitude } = itemData;
     console.log(itemData)
 
     // Create item
@@ -96,6 +108,8 @@ export class ItemService {
         description: description.trim(),
         category: category.trim(),
         condition: condition,
+        phone_number: phone_number.trim(),
+        whatsapp_number: whatsapp_number?.trim() || null,
         status: 'AVAILABLE',
         latitude,
         longitude
@@ -123,7 +137,7 @@ export class ItemService {
       // Fetch item with images
       const itemWithImages = await prisma.item.findUnique({
         where: { id: item.id },
-        include: {
+        include: { 
           user: {
             select: { name: true, image: true }
           },
@@ -157,6 +171,10 @@ export class ItemService {
     if (updateData.description) filteredUpdateData.description = updateData.description.trim();
     if (updateData.category) filteredUpdateData.category = updateData.category.trim();
     if (updateData.condition) filteredUpdateData.condition = updateData.condition;
+    if (updateData.phone_number) filteredUpdateData.phone_number = updateData.phone_number.trim();
+    if (updateData.whatsapp_number !== undefined) {
+      filteredUpdateData.whatsapp_number = updateData.whatsapp_number?.trim() || null;
+    }
 
     if (Object.keys(filteredUpdateData).length > 0) {
       filteredUpdateData.updated_at = new Date();
@@ -306,15 +324,14 @@ export class ItemService {
   /**
    * Get items by user ID
    */
-  static async getItemsByUser(userId, pagination) {
-    const { page, limit } = pagination;
-    const skip = (page - 1) * limit;
+  static async getItemsByUser(userId) {
+
 
     const [items, total] = await Promise.all([
       prisma.item.findMany({
         where: { user_id: userId },
         include: {
-          images: { orderBy: { order: 'asc' } },
+          images: {  },
           _count: {
             select: { 
               trade_requests_for: { where: { status: 'PENDING' } }
@@ -322,20 +339,13 @@ export class ItemService {
           }
         },
         orderBy: { posted_at: 'desc' },
-        skip,
-        take: limit
       }),
       prisma.item.count({ where: { user_id: userId } })
     ]);
 
     return {
       items,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+
     };
   }
 }

@@ -9,112 +9,114 @@ export class RatingService {
    * Create a new rating
    */
   static async createRating(ratingData, raterId) {
-    const { rated_id, trade_id, rating, review } = ratingData;
+    const { reviewee_id, trade_id, rating, comment } = ratingData;
 
     // Validate user is not rating themselves
-    if (raterId === rated_id) {
+    if (raterId === reviewee_id) {
       throw new Error('You cannot rate yourself');
     }
 
-    // If trade_id is provided, validate the trade and user's involvement
-    if (trade_id) {
-      const trade = await prisma.trade.findUnique({
-        where: { id: trade_id },
-        select: { 
-          user1_id: true, 
-          user2_id: true, 
-          status: true,
-          requested_item: {
-            select: { user_id: true }
-          },
-          offered_item: {
-            select: { user_id: true }
-          }
-        }
-      });
-
-      if (!trade) {
-        throw new Error('Trade not found');
-      }
-
-      if (trade.status !== 'COMPLETED') {
-        throw new Error('You can only rate users from completed trades');
-      }
-
-      // Validate the rater was part of the trade
-      const isUserInTrade = trade.user1_id === raterId || trade.user2_id === raterId;
-      if (!isUserInTrade) {
-        throw new Error('You can only rate users from trades you participated in');
-      }
-
-      // Validate the rated user was part of the trade and is the other party
-      const isRatedUserInTrade = trade.user1_id === rated_id || trade.user2_id === rated_id;
-      if (!isRatedUserInTrade) {
-        throw new Error('You can only rate the other party in the trade');
-      }
-
-      // Check if rating already exists for this trade
-      const existingRating = await prisma.userRating.findFirst({
-        where: {
-          rater_id: raterId,
-          rated_id: rated_id,
-          trade_id: trade_id
-        }
-      });
-
-      if (existingRating) {
-        throw new Error('You have already rated this user for this trade');
-      }
-    } else {
-      // For general ratings (not trade-specific), check if user exists
-      const ratedUser = await prisma.user.findUnique({
-        where: { id: rated_id },
-        select: { id: true }
-      });
-
-      if (!ratedUser) {
-        throw new Error('User to be rated not found');
-      }
-    }
-
-    // Create the rating
-    const newRating = await prisma.userRating.create({
-      data: {
-        rater_id: raterId,
-        rated_id,
-        trade_id: trade_id || null,
-        rating,
-        review: review || null
-      },
-      include: {
-        rater: {
-          select: { id: true, name: true, image: true }
-        },
-        rated: {
-          select: { id: true, name: true, image: true }
-        },
-        trade: trade_id ? {
-          select: {
-            id: true,
-            requested_item: { select: { title: true } },
-            offered_item: { select: { title: true } }
-          }
-        } : false
+    // Validate the trade and user's involvement
+    const trade = await prisma.trade.findUnique({
+      where: { id: trade_id },
+      select: { 
+        owner_id: true, 
+        requester_id: true, 
+        status: true
       }
     });
 
-    return newRating;
+    if (!trade) {
+      throw new Error('Trade not found');
+    }
+
+    if (trade.status !== 'COMPLETED') {
+      throw new Error('You can only rate users from completed trades');
+    }
+
+    // Validate the rater was part of the trade
+    const isUserInTrade = trade.owner_id === raterId || trade.requester_id === raterId;
+    if (!isUserInTrade) {
+      throw new Error('You can only rate users from trades you participated in');
+    }
+
+    // Validate the rated user was part of the trade and is the other party
+    const isRatedUserInTrade = trade.owner_id === reviewee_id || trade.requester_id === reviewee_id;
+    if (!isRatedUserInTrade) {
+      throw new Error('You can only rate the other party in the trade');
+    }
+
+    // Check if rating already exists for this trade
+    const existingRating = await prisma.rating.findFirst({
+      where: {
+        reviewer_id: raterId,
+        reviewee_id: reviewee_id,
+        trade_id: trade_id
+      }
+    });
+
+    if (existingRating) {
+      throw new Error('You have already rated this user for this trade');
+    }
+
+    // Create the rating and update loyalty points in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the rating
+      const newRating = await tx.rating.create({
+        data: {
+          reviewer_id: raterId,
+          reviewee_id,
+          trade_id,
+          rating,
+          comment: comment || null
+        },
+        include: {
+          reviewer: {
+            select: { id: true, name: true, image: true }
+          },
+          reviewee: {
+            select: { id: true, name: true, image: true }
+          },
+          trade: {
+            select: {
+              id: true,
+              requested_item: { select: { title: true } },
+              offered_item: { select: { title: true } }
+            }
+          }
+        }
+      });
+
+      // Calculate loyalty points (5 points per star)
+      const loyaltyPoints = rating * 5;
+
+      // Add loyalty points to the reviewee
+      await tx.user.update({
+        where: { id: reviewee_id },
+        data: {
+          loyalty_points: {
+            increment: loyaltyPoints
+          }
+        }
+      });
+
+      return newRating;
+    });
+
+    return result;
   }
 
   /**
    * Update a rating
    */
   static async updateRating(ratingId, raterId, updateData) {
-    const existingRating = await prisma.userRating.findUnique({
+    const existingRating = await prisma.rating.findUnique({
       where: { id: ratingId },
       select: { 
-        rater_id: true,
-        trade_id: true
+        reviewer_id: true,
+        trade_id: true,
+        rating: true,
+        reviewee_id: true
       }
     });
 
@@ -122,58 +124,92 @@ export class RatingService {
       throw new Error('Rating not found');
     }
 
-    if (existingRating.rater_id !== raterId) {
+    if (existingRating.reviewer_id !== raterId) {
       throw new Error('You can only update your own ratings');
     }
 
-    // Optional: Add time limit for updates (e.g., 30 days)
-    // const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    // if (existingRating.created_at < thirtyDaysAgo) {
-    //   throw new Error('Ratings can only be updated within 30 days of creation');
-    // }
+    // If rating value is being updated, calculate loyalty point difference
+    let loyaltyPointsDiff = 0;
+    if (updateData.rating && updateData.rating !== existingRating.rating) {
+      const oldPoints = existingRating.rating * 5;
+      const newPoints = updateData.rating * 5;
+      loyaltyPointsDiff = newPoints - oldPoints;
+    }
 
-    const updatedRating = await prisma.userRating.update({
-      where: { id: ratingId },
-      data: updateData,
-      include: {
-        rater: {
-          select: { id: true, name: true, image: true }
-        },
-        rated: {
-          select: { id: true, name: true, image: true }
-        },
-        trade: existingRating.trade_id ? {
-          select: {
-            id: true,
-            requested_item: { select: { title: true } },
-            offered_item: { select: { title: true } }
+    // Update rating and loyalty points in a transaction if needed
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedRating = await tx.rating.update({
+        where: { id: ratingId },
+        data: updateData,
+        include: {
+          reviewer: {
+            select: { id: true, name: true, image: true }
+          },
+          reviewee: {
+            select: { id: true, name: true, image: true }
+          },
+          trade: {
+            select: {
+              id: true,
+              requested_item: { select: { title: true } },
+              offered_item: { select: { title: true } }
+            }
           }
-        } : false
+        }
+      });
+
+      // Update loyalty points if rating changed
+      if (loyaltyPointsDiff !== 0) {
+        await tx.user.update({
+          where: { id: existingRating.reviewee_id },
+          data: {
+            loyalty_points: {
+              increment: loyaltyPointsDiff
+            }
+          }
+        });
       }
+
+      return updatedRating;
     });
 
-    return updatedRating;
+    return result;
   }
 
   /**
    * Delete a rating
    */
   static async deleteRating(ratingId, raterId) {
-    const existingRating = await prisma.userRating.findUnique({
+    const existingRating = await prisma.rating.findUnique({
       where: { id: ratingId },
-      select: { rater_id: true }
+      select: { reviewer_id: true, rating: true, reviewee_id: true }
     });
 
     if (!existingRating) {
       throw new Error('Rating not found');
     }
 
-    if (existingRating.rater_id !== raterId) {
+    if (existingRating.reviewer_id !== raterId) {
       throw new Error('You can only delete your own ratings');
     }
 
-    await prisma.userRating.delete({
-      where: { id: ratingId }
+    // Delete rating and adjust loyalty points in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Delete the rating
+      await tx.rating.delete({
+        where: { id: ratingId }
+      });
+
+      // Subtract loyalty points that were given for this rating
+      const pointsToSubtract = existingRating.rating * 5;
+      await tx.user.update({
+        where: { id: existingRating.reviewee_id },
+        data: {
+          loyalty_points: {
+            decrement: pointsToSubtract
+          }
+        }
+      });
     });
 
     return { message: 'Rating deleted successfully' };
@@ -182,22 +218,21 @@ export class RatingService {
   /**
    * Get ratings for a user (ratings they received)
    */
-  static async getUserRatings(userId, type = 'received', pagination) {
-    const { page, limit } = pagination;
-    const skip = (page - 1) * limit;
+  static async getUserRatings(userId, type = 'received') {
+    
 
     const whereClause = type === 'given' 
-      ? { rater_id: userId }
-      : { rated_id: userId };
+      ? { reviewer_id: userId }
+      : { reviewee_id: userId };
 
     const [ratings, total, averageRating] = await Promise.all([
-      prisma.userRating.findMany({
+      prisma.rating.findMany({
         where: whereClause,
         include: {
-          rater: {
+          reviewer: {
             select: { id: true, name: true, image: true }
           },
-          rated: {
+          reviewee: {
             select: { id: true, name: true, image: true }
           },
           trade: {
@@ -208,12 +243,10 @@ export class RatingService {
             }
           }
         },
-        orderBy: { created_at: 'desc' },
-        skip,
-        take: limit
+        orderBy: { created_at: 'desc' }
       }),
-      prisma.userRating.count({ where: whereClause }),
-      prisma.userRating.aggregate({
+      prisma.rating.count({ where: whereClause }),
+      prisma.rating.aggregate({
         where: whereClause,
         _avg: { rating: true },
         _count: { rating: true }
@@ -222,12 +255,6 @@ export class RatingService {
 
     return {
       ratings,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      },
       statistics: {
         averageRating: averageRating._avg.rating ? 
           Math.round(averageRating._avg.rating * 10) / 10 : 0,
@@ -242,23 +269,23 @@ export class RatingService {
   static async getUserRatingStats(userId) {
     const [receivedStats, givenStats, ratingDistribution] = await Promise.all([
       // Stats for ratings received
-      prisma.userRating.aggregate({
-        where: { rated_id: userId },
+      prisma.rating.aggregate({
+        where: { reviewee_id: userId },
         _avg: { rating: true },
         _count: { rating: true },
         _min: { rating: true },
         _max: { rating: true }
       }),
       // Stats for ratings given
-      prisma.userRating.aggregate({
-        where: { rater_id: userId },
+      prisma.rating.aggregate({
+        where: { reviewer_id: userId },
         _avg: { rating: true },
         _count: { rating: true }
       }),
       // Distribution of ratings received
-      prisma.userRating.groupBy({
+      prisma.rating.groupBy({
         by: ['rating'],
-        where: { rated_id: userId },
+        where: { reviewee_id: userId },
         _count: { rating: true },
         orderBy: { rating: 'asc' }
       })

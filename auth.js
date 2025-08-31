@@ -21,6 +21,10 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || `http://localhost:3000`,
   trustedOrigins: [
     "http://localhost:5173", // Vite frontend
-    "http://localhost:3000", // Backend
+    "http://localhost:3000", // Backend itself
+    "http://localhost:8080", // Alternative frontend port
+    "http://localhost:8081", // Alternative frontend port
+    "http://localhost:8082", // Alternative frontend port
+    "http://localhost:8083"  // Alternative frontend port
   ],
 });

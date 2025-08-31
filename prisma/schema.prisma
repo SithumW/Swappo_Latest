@@ -128,16 +128,18 @@ enum Badge {
 
 // Items/Listings - each item posted by a user
 model Item {
-  id          String        @id @default(cuid())
-  user_id     String        // FK → Users
-  title       String
-  description String
-  category    String
-  condition   ItemCondition // new, good, fair, poor
-  status      ItemStatus    @default(AVAILABLE) // available, reserved, swapped, removed
-  latitude    Float?        // GPS latitude coordinate
-  longitude   Float?        // GPS longitude coordinate
-  posted_at   DateTime      @default(now())
+  id              String        @id @default(cuid())
+  user_id         String        // FK → Users
+  title           String
+  description     String
+  category        String
+  condition       ItemCondition // new, good, fair, poor
+  status          ItemStatus    @default(AVAILABLE) // available, reserved, swapped, removed
+  phone_number    String        @default("") // Required contact phone number
+  whatsapp_number String?       // Optional WhatsApp number
+  latitude        Float?        // GPS latitude coordinate
+  longitude       Float?        // GPS longitude coordinate
+  posted_at       DateTime      @default(now())
   
   // Relations
   user                   User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
