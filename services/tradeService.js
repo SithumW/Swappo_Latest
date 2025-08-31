@@ -373,64 +373,41 @@ export class TradeService {
   /**
    * Get user's trades
    */
-  static async getUserTrades(userId, pagination) {
-    const { page, limit } = pagination;
-    const skip = (page - 1) * limit;
-
-    const [trades, total] = await Promise.all([
-      prisma.trade.findMany({
-        where: {
-          OR: [
-            { owner_id: userId },
-            { requester_id: userId }
-          ]
+  static async getUserTrades(userId) {
+    const trades = await prisma.trade.findMany({
+      where: {
+        OR: [
+          { owner_id: userId },
+          { requester_id: userId }
+        ]
+      },
+      include: {
+        trade_request: {
+          select: { requested_at: true }
         },
-        include: {
-          trade_request: {
-            select: { requested_at: true }
-          },
-          requested_item: {
-            include: { 
-              images: true,
-              user: { select: { id: true, name: true, image: true } }
-            }
-          },
-          offered_item: {
-            include: { 
-              images: true,
-              user: { select: { id: true, name: true, image: true } }
-            }
-          },
-          owner: {
-            select: { id: true, name: true, image: true }
-          },
-          requester: {
-            select: { id: true, name: true, image: true }
+        requested_item: {
+          include: { 
+            images: true,
+            user: { select: { id: true, name: true, image: true } }
           }
         },
-        orderBy: { created_at: 'desc' },
-        skip,
-        take: limit
-      }),
-      prisma.trade.count({
-        where: {
-          OR: [
-            { owner_id: userId },
-            { requester_id: userId }
-          ]
+        offered_item: {
+          include: { 
+            images: true,
+            user: { select: { id: true, name: true, image: true } }
+          }
+        },
+        owner: {
+          select: { id: true, name: true, image: true }
+        },
+        requester: {
+          select: { id: true, name: true, image: true }
         }
-      })
-    ]);
-
-    return {
-      trades,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    };
+      },
+      orderBy: { created_at: 'desc' }
+    });
+    console.log(trades);
+    return trades;
   }
 
   /**

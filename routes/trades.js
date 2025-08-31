@@ -107,10 +107,9 @@ router.post('/cancel/:tradeId',
 // Get user's trades
 router.get('/my-trades', 
   authMiddleware,
-  validateQuery(userTradesQuerySchema),
   async (req, res) => {
     try {
-      const trades = await TradeService.getUserTrades(req.user.id, req.query);
+      const trades = await TradeService.getUserTrades(req.user.id);
       res.json(createSuccessResponse(trades));
     } catch (error) {
       console.error('Fetch trades error:', error);

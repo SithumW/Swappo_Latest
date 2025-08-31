@@ -108,6 +108,10 @@ router.post('/',
   upload.array('images', 5),
   validateFiles({ maxFiles: 5, required: false }),
   validateBody(createItemSchema),
+  (req, res, next) => {
+    console.log('Item creation request:', req.body);
+    next();
+  },
   async (req, res) => {
     try {
       const itemData = {

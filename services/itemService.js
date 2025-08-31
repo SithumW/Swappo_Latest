@@ -123,7 +123,7 @@ export class ItemService {
       // Fetch item with images
       const itemWithImages = await prisma.item.findUnique({
         where: { id: item.id },
-        include: {
+        include: { 
           user: {
             select: { name: true, image: true }
           },
