@@ -246,7 +246,11 @@ export class RatingService {
     const [ratings, total, averageRating] = await Promise.all([
       prisma.rating.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          created_at: true,
           reviewer: {
             select: { id: true, name: true, image: true }
           },
