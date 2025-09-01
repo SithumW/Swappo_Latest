@@ -17,18 +17,36 @@ export class RatingService {
     }
 
     // Validate the trade and user's involvement
-    const trade = await prisma.trade.findUnique({
+    // First try to find trade by trade_id
+    let trade = await prisma.trade.findUnique({
       where: { id: trade_id },
       select: { 
+        id: true,
         owner_id: true, 
         requester_id: true, 
         status: true
       }
     });
 
+    // If not found, try to find trade by trade_request_id (in case frontend sent trade_request_id)
+    if (!trade) {
+      trade = await prisma.trade.findUnique({
+        where: { trade_request_id: trade_id },
+        select: { 
+          id: true,
+          owner_id: true, 
+          requester_id: true, 
+          status: true
+        }
+      });
+    }
+
     if (!trade) {
       throw new Error('Trade not found');
     }
+
+    // Use the actual trade ID for further operations
+    const actualTradeId = trade.id;
 
     if (trade.status !== 'COMPLETED') {
       throw new Error('You can only rate users from completed trades');
@@ -51,7 +69,7 @@ export class RatingService {
       where: {
         reviewer_id: raterId,
         reviewee_id: reviewee_id,
-        trade_id: trade_id
+        trade_id: actualTradeId
       }
     });
 
@@ -66,7 +84,7 @@ export class RatingService {
         data: {
           reviewer_id: raterId,
           reviewee_id,
-          trade_id,
+          trade_id: actualTradeId,
           rating,
           comment: comment || null
         },

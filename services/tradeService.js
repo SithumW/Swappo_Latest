@@ -242,10 +242,11 @@ export class TradeService {
   }
 
   /**
-   * Complete a trade
+   * Complete a tradejjjjjjjjjjjjjjjjjjjjj
    */
   static async completeTrade(tradeId, userId) {
-    const trade = await prisma.trade.findUnique({
+    // First try to find trade by request ID, then by trade ID
+    let trade = await prisma.trade.findUnique({
       where: { trade_request_id: tradeId },
       include: {
         requested_item: { select: { id: true, user_id: true, title: true } },
@@ -253,6 +254,16 @@ export class TradeService {
       }
     });
 
+    // If not found by request ID, try by trade ID
+    if (!trade) {
+      trade = await prisma.trade.findUnique({
+        where: { id: tradeId },
+        include: {
+          requested_item: { select: { id: true, user_id: true, title: true } },
+          offered_item: { select: { id: true, user_id: true, title: true } }
+        }
+      });
+    }
 
     if (!trade) {
       throw new Error('Trade not found');
@@ -269,9 +280,9 @@ export class TradeService {
 
     // Complete the trade
     const result = await prisma.$transaction(async (tx) => {
-      // Update trade status
+      // Update trade status using the actual trade ID
       const completedTrade = await tx.trade.update({
-        where: { trade_request_id: tradeId },
+        where: { id: trade.id },
         data: { 
           status: 'COMPLETED',
           completed_at: new Date()
@@ -433,6 +444,9 @@ export class TradeService {
             images: true,
             user: { select: { id: true, name: true, image: true } }
           }
+        },
+        trade: { 
+          select: { id: true, status: true }
         }
       },
       orderBy: { requested_at: 'desc' }

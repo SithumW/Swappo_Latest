@@ -89,7 +89,6 @@ if (swaggerDocument) {
       .swagger-ui .highlight-code { background: #f1f5f9; }
     `,
     customSiteTitle: 'Swappo API Documentation',
-    customfavIcon: '/favicon.ico',
     swaggerOptions: {
       docExpansion: 'list', // 'none', 'list', or 'full'
       filter: true,

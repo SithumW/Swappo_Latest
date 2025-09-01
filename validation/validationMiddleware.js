@@ -233,6 +233,10 @@ export const userIdParamSchema = Joi.object({
   userId: Joi.string().required()
 });
 
+export const ratingIdParamSchema = Joi.object({
+  ratingId: Joi.string().required()
+});
+
 // Re-export response utilities for convenience
 export {
   createSuccessResponse,

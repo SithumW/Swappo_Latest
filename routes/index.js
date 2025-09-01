@@ -12,6 +12,15 @@ import ratingRoutes from './ratings.js';
 
 const router = express.Router();
 
+// Health check endpoint
+router.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Swappo API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 router.use('/users', userRoutes);
 router.use('/items', itemRoutes);
 router.use('/trades', tradeRoutes);

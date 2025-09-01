@@ -11,6 +11,7 @@ import {
   createErrorResponse,
   idParamSchema,
   userIdParamSchema,
+  ratingIdParamSchema,
   paginationSchema
 } from '../validation/validationMiddleware.js';
 
@@ -44,11 +45,11 @@ router.post('/',
 // Update a rating
 router.put('/:ratingId', 
   authMiddleware,
-  validateParams(idParamSchema),
+  validateParams(ratingIdParamSchema),
   validateBody(updateRatingSchema),
   async (req, res) => {
     try {
-      const rating = await RatingService.updateRating(req.params.id, req.user.id, req.body);
+      const rating = await RatingService.updateRating(req.params.ratingId, req.user.id, req.body);
       res.json(createSuccessResponse(rating, 'Rating updated successfully'));
     } catch (error) {
       console.error('Rating update error:', error);
@@ -61,10 +62,10 @@ router.put('/:ratingId',
 // Delete a rating
 router.delete('/:ratingId', 
   authMiddleware,
-  validateParams(idParamSchema),
+  validateParams(ratingIdParamSchema),
   async (req, res) => {
     try {
-      const result = await RatingService.deleteRating(req.params.id, req.user.id);
+      const result = await RatingService.deleteRating(req.params.ratingId, req.user.id);
       res.json(createSuccessResponse(result));
     } catch (error) {
       console.error('Rating deletion error:', error);
@@ -88,8 +89,22 @@ router.get('/user/:userId',
   }
 );
 
+// Get ratings by user ID (alternative endpoint)
+router.get('/by-user/:userId', 
+  validateParams(userIdParamSchema),
+  async (req, res) => {
+    try {
+      const result = await RatingService.getUserRatings(req.params.userId, 'received');
+      res.json(createSuccessResponse(result));
+    } catch (error) {
+      console.error('User ratings fetch error:', error);
+      res.status(500).json(createErrorResponse('Failed to fetch user ratings'));
+    }
+  }
+);
+
 // Get rating statistics for a user
-router.get('/user/:userId/stats', 
+router.get('/stats/:userId', 
   validateParams(userIdParamSchema),
   async (req, res) => {
     try {
@@ -101,6 +116,10 @@ router.get('/user/:userId/stats',
     }
   }
 );
+
+
+
+
 
 // Get pending ratings (trades that can be rated by current user)
 router.get('/pending', 
